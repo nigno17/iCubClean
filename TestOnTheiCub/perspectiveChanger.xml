@@ -1,0 +1,31 @@
+<application>
+    <name>perspective changer</name>
+
+    <dependencies>
+        <port>/icubSim/cam/right</port>
+    </dependencies>
+
+     <module>
+        <name>/home/nigno/Robots/poeticon/build/bin/perspectiveChanger</name>
+        <parameters>--table 0.0</parameters>
+        <node>localhost</node>
+    </module>
+
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /homography</parameters>
+        <node>localhost</node>
+    </module>
+
+    <connection>
+        <from>/icubSim/cam/right</from>
+        <to>/perspectiveChanger/img:io</to>
+        <protocol>udp</protocol>
+    </connection>
+
+    <connection>
+        <from>/perspectiveChanger/img:io</from>
+        <to>/homography</to>
+        <protocol>udp</protocol>
+    </connection>
+</application>
