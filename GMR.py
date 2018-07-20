@@ -44,7 +44,7 @@ def GMR(net_output, ngauss = 5):
     covts = cov[:, 0, 1:].clone()
     covts = covts.resize(1, ngauss, 1, D - 1).expand(traj_len, ngauss, 1, D - 1)
     
-    time = Variable(torch.arange(0, (traj_len - 1) / traj_len, 1 / traj_len).type(torchType)  , requires_grad=False)
+    time = Variable(torch.arange(0, (traj_len) / traj_len, 1 / traj_len).type(torchType)  , requires_grad=False)
     time = time.resize(traj_len, 1).expand(traj_len, ngauss)
     
     
