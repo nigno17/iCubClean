@@ -1,12 +1,10 @@
 from __future__ import print_function, division
 import os
 import torch
-import pandas as pd
-from skimage import io, transform
+from skimage import transform
 import numpy as np
 import matplotlib.pyplot as plt
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+from torch.utils.data import Dataset
 import cv2
 import random
 
@@ -61,7 +59,7 @@ class ToTensor(object):
                 'trajectories': torch.from_numpy(trajectories).float()}
         
 class Normalize(object):
-    """Convert ndarrays in sample to Tensors.
+    """Normilize the images subracting the mean and dividing by the standard deviation.
     
     Args:
         mean: Mean of rgb channels
@@ -86,11 +84,12 @@ class Normalize(object):
                 'trajectories': trajectories}
         
 class Shift(object):
-    """Convert ndarrays in sample to Tensors.
+    """Random shift of image pixels and trajectories between min and max values in x and y.
     
     Args:
-        mean: Mean of rgb channels
-        std: Standard deviation of rgb channels
+        x_min, x_max: Min and max x-axis values in meters for the random shift generation.
+        y_min, y_max: Min and max y-axis values in meters for the random shift generation.
+        meter2pixel: Meter to pixels scale factor.
     """
     
     def __init__(self, x_min, x_max, y_min, y_max, meter2pixel = 240):
@@ -126,11 +125,11 @@ class Shift(object):
                 'trajectories': trajectories}
         
 class ChangeLight(object):
-    """Convert ndarrays in sample to Tensors.
+    """Random change in brightness for each rgb channel in the image. 
     
     Args:
-        mean: Mean of rgb channels
-        std: Standard deviation of rgb channels
+        delta: Dimention of the interval for the random generation of brightness shift (-delta, delta)
+        percentage: probability to actually apply the change in brightness.
     """
     
     def __init__(self, delta, percentage = 1.0):
@@ -160,21 +159,22 @@ class ChangeLight(object):
                 'trajectories': trajectories}
     
 class JaeseokDataset(Dataset):
-    """Face trajectories dataset."""
+    """Cleaning trajectories dataset."""
 
     def __init__(self, root_dir, training_per, transform=None, dset_type='train', seed=1, permuted= True):
         """
         Args:
-            indices_file (string): Path to the txt file with image indices.
-            traj_dir (string): Directory with all the trajectories.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
+            root_dir (string): Path to the dataset directory.
+            training_per (float): percentage of the dataset to use as training set.
+            transform (callable, optional): Optional transform to be applied on a sample.
+            dset_type (string): String to decide if use the training set or the validation set (possible values: train or val).
+            seed (int): Seed for the random permutation of the dataset elements.
+            permuted (bool): Flag to decide if shuffle or not the elements of the dataset.
         """
         
-        self.img_dir = root_dir + 'aug_dataset_cut/'
-        self.traj_dir = root_dir + 'aug_trajectories_cut/'
-        self.old_img_dir = root_dir + 'new_dataset_jaeseok_cut/'
+        self.img_dir = root_dir + 'images/'
+        self.traj_dir = root_dir + 'trajectories/'
+        self.old_img_dir = root_dir + '../original/images/'
         
         file_list_old = os.listdir(self.old_img_dir)
         self.old_nframes = len(file_list_old)
@@ -233,21 +233,22 @@ class JaeseokDataset(Dataset):
         return sample
 
 class JaeseokDatasetRam(Dataset):
-    """Face trajectories dataset."""
+    """Cleaning trajectories dataset (all the dataset loaded in RAM)."""
 
     def __init__(self, root_dir, training_per, transform=None, dset_type='train', seed=1, permuted= True):
         """
         Args:
-            indices_file (string): Path to the txt file with image indices.
-            traj_dir (string): Directory with all the trajectories.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
+            root_dir (string): Path to the dataset directory.
+            training_per (float): percentage of the dataset to use as training set.
+            transform (callable, optional): Optional transform to be applied on a sample.
+            dset_type (string): String to decide if use the training set or the validation set (possible values: train or val).
+            seed (int): Seed for the random permutation of the dataset elements.
+            permuted (bool): Flag to decide if shuffle or not the elements of the dataset.
         """
         
-        self.img_dir = root_dir + 'aug_dataset_cut/'
-        self.traj_dir = root_dir + 'aug_trajectories_cut/'
-        self.old_img_dir = root_dir + 'new_dataset_jaeseok_cut/'
+        self.img_dir = root_dir + 'images/'
+        self.traj_dir = root_dir + 'trajectories/'
+        self.old_img_dir = root_dir + '../original/images/'
         
         self.images_list = []
         self.trajectories_list = []
@@ -312,43 +313,3 @@ class JaeseokDatasetRam(Dataset):
             sample = self.transform(sample)
 
         return sample
-    
-#train_dataset = JaeseokDataset(indices_file = 'data/text_train_test_set/train_set.txt',
-#                               traj_dir = 'data/modified_trajectory/',
-#                               root_dir = 'data/training_set/')
-#
-#fig = plt.figure()
-#
-#for i in range(len(train_dataset)):
-#    sample = train_dataset[i]
-#
-#    print(i, sample['image'].shape, sample['trajectories'].shape)
-#
-#    ax = plt.subplot(1, 3, i + 1)
-#    plt.tight_layout()
-#    ax.set_title('Sample #{}'.format(i))
-#    ax.axis('off')
-#    plt.imshow(sample['image'])
-#
-#    if i == 2:
-#        plt.show()
-#        break
-#    
-#fig2 = plt.figure()
-#
-#for i in range(len(train_dataset)):
-#    sample = train_dataset[i]
-#
-#    print(i, sample['image'].shape, sample['trajectories'].shape)
-#
-#    ax = plt.subplot(1, 3, i + 1)
-#    plt.tight_layout()
-#    ax.set_title('Sample #{}'.format(i))
-#    ax.axis('off')
-#    show_trajectories(**sample)
-#
-#    if i == 2:
-#        plt.show()
-#        break
-#
-#plt.pause(5)

@@ -16,11 +16,9 @@ from DataLoading import JaeseokDataset, JaeseokDatasetRam, Rescale, ToTensor, No
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
 from torch.autograd import Variable
 import numpy as np
-import torchvision
-from torchvision import datasets, models, transforms
+from torchvision import transforms
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -31,7 +29,6 @@ import visdom
 from GMRLoss import GMRLoss
 from GMR import GMR
 from JaeseokNet import JaeseokNetPretrained, JaeseokNet
-from PrintGaussians import plot_results, plot_results_time
 
 
 #plt.ion()   # interactive mode
@@ -39,9 +36,6 @@ from PrintGaussians import plot_results, plot_results_time
 vis = visdom.Visdom()
 
 vis.close(None)
-
-# Data augmentation and normalization for training
-# Just normalization for validation
 
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
@@ -64,25 +58,23 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 
-fixed = False
-train = True
+# Modalities
+train = False
 restore = False
-checkpoint_dir = '/media/nigno/Data/checkpointsJaeseok/'
 
+# check if the checkpoints dir exist otherwise create it
+checkpoint_dir = 'checkpoints/'
+if not os.path.exists(checkpoint_dir):
+    os.makedirs(checkpoint_dir)
+    
+# check if the checkpoints dir exist otherwise create it
+save_dir = 'errors/'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
+
+# mean and std of the pretrained Alexnet with imagenet
 mean = np.array([0.485, 0.456, 0.406])
 std = np.array([0.229, 0.224, 0.225])
-
-def imshow(inp, title=None):
-    """Imshow for Tensor."""
-    inp = inp.numpy().transpose((1, 2, 0))
-    #mean = np.array([0.485, 0.456, 0.406])
-    #std = np.array([0.229, 0.224, 0.225])
-    #inp = std * inp + mean
-    #inp = np.clip(inp, 0, 1)
-    plt.imshow(inp)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001)  # pause a bit so that plots are updated
     
                  
 data_transforms_custom_train = transforms.Compose([Rescale((240, 320)),
@@ -96,15 +88,27 @@ data_transforms_custom_val = transforms.Compose([Rescale((240, 320)),
     
 seed = 3;
 
-train_dataset = JaeseokDatasetRam(root_dir = 'Corrected_dataset8/',
+train_dataset = JaeseokDataset(root_dir = 'datasetICDL-JINT/JINT/',
                                   transform = data_transforms_custom_train,
                                   dset_type='train', seed=seed, 
                                   training_per = 0.8)
 
-val_dataset = JaeseokDatasetRam(root_dir = 'Corrected_dataset8/',
+val_dataset = JaeseokDataset(root_dir = 'datasetICDL-JINT/JINT/',
                                 transform = data_transforms_custom_val,
                                 dset_type='val', seed=seed, 
                                 training_per = 0.8)
+
+# Load all the dataset in RAM
+
+#train_dataset = JaeseokDatasetRam(root_dir = 'datasetICDL-JINT/JINT/',
+#                                  transform = data_transforms_custom_train,
+#                                  dset_type='train', seed=seed, 
+#                                  training_per = 0.8)
+#
+#val_dataset = JaeseokDatasetRam(root_dir = 'datasetICDL-JINT/JINT/',
+#                                transform = data_transforms_custom_val,
+#                                dset_type='val', seed=seed, 
+#                                training_per = 0.8)
 
 print(len(train_dataset))
 print(len(val_dataset))
@@ -123,8 +127,6 @@ samples = next(iter(dataloader_train))
 ## Make a grid from batch
 vis.images(samples['image'], 
            opts=dict(title='Batch',),)
-
-#imshow(out, title=['batch'])
 
 def train_model(model, criterion, optimizer, scheduler, num_epochs=25, start_epoch=0, 
                 loss_list=[], loss_list_val=[], 
@@ -154,7 +156,6 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, start_epo
     since = time.time()
 
     best_model_wts = model.state_dict()
-#    best_acc = 0.0
     best_loss = 100.0
 
     for epoch in range(num_epochs):
@@ -179,7 +180,6 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, start_epo
             running_loss_1 = 0.0
             running_loss_2 = 0.0
             running_loss_mse = 0.0
-#            running_corrects = 0
 
             # Iterate over data.
             samples_count = 0
@@ -205,9 +205,9 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, start_epo
 
                 # forward
                 outputs = model(inputs)
-#                _, preds = torch.max(outputs.data, 1)
                 #loss = criterion(outputs, trajectories)
                 
+                # Ad hoc Loss Function
                 loss = 0
                 loss_1 = 0
                 loss_2 = 0
@@ -230,14 +230,11 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, start_epo
                 running_loss_1 += loss_1.data[0]
                 running_loss_2 += loss_2.data[0]
                 running_loss_mse += loss_mse.data[0]
-                #print('sample {}/{}. Loss: {}. Dataset size: {}'.format(samples_count, len(dataloader), loss.data[0], dataset_size))
-#                running_corrects += torch.sum(preds == labels.data)
 
             epoch_loss = running_loss / dataset_size
             epoch_loss_1 = running_loss_1 / dataset_size
             epoch_loss_2 = running_loss_2 / dataset_size
             epoch_loss_mse = running_loss_mse / dataset_size
-#            epoch_acc = running_corrects / dataset_sizes[phase]
 
             print('{} Loss: {:.7f}'.format(phase, epoch_loss))
             
@@ -253,7 +250,6 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, start_epo
                 loss_mse_list += [epoch_loss_mse]
 
             # deep copy the model
-            #if phase == 'val' and epoch_loss < best_loss:
             torch.save({
                         'epoch': epoch + start_epoch + 1,
                         'state_dict': model.state_dict(),
@@ -371,72 +367,31 @@ def visualize_model(model, num_images=4, tort = 'Val'):
             ax = plt.subplot(num_images//2, 2, images_so_far)
             ax.axis('off')
             
-            inp = inputs[j].cpu().data.numpy().transpose((1, 2, 0))
-            #mean = np.array([0.485, 0.456, 0.406])
-            #std = np.array([0.229, 0.224, 0.225])
-            #inp = std * inp + mean
-            #inp = np.clip(inp, 0, 1)
-            ax.imshow(inp, origin='upper')
+            if use_gpu:
+                inp = inputs[j].cpu().data.numpy().transpose((1, 2, 0))
+                img_traj = trajectories[j].cpu().data.numpy()
+                img_out_data = outData.cpu().data.numpy()
+            else:
+                inp = inputs[j].data.numpy().transpose((1, 2, 0))
+                img_traj = trajectories[j].data.numpy()
+                img_out_data = outData.data.numpy()
             
-            img_traj = trajectories[j].cpu().data.numpy()
-            img_out_data = outData.cpu().data.numpy()
-            
-#            img_traj[:, 1] = (img_traj[:, 1] + 0.75) * 240
-#            img_traj[:, 0] = (img_traj[:, 0] + 1.0) * 240
-#            img_out_data[:, 1] = (img_out_data[:, 1] + 0.75) * 240
-#            img_out_data[:, 0] = (img_out_data[:, 0] + 1.0) * 240
+            ax.imshow(inp, origin='upper')            
             
             img_traj[:, 0] = (img_traj[:, 0] + 1.0) * 240
             img_traj[:, 1] = (img_traj[:, 1] + (2.0 / 3.0)) * 240
             img_out_data[:, 0] = (img_out_data[:, 0] + 1.0) * 240
             img_out_data[:, 1] = (img_out_data[:, 1] + (2.0 / 3.0)) * 240
             
-            #imshow(inputs.cpu().data[j])
             plt.scatter(img_traj[:, 1], img_traj[:, 0], s=10, marker='.', color='red')
             plt.scatter(img_out_data[:, 1], img_out_data[:, 0], s=10, marker='.', color='blue')
-#            plt.scatter(time.cpu().data.numpy(), trajectories[j][:, 0].cpu().data.numpy(), s=10, marker='.', color='red')
-#            plt.scatter(time.cpu().data.numpy(), outData[:, 0].cpu().data.numpy(), s=10, marker='.', color='blue')
-            
-#            plot_results(outputs[j], ax)
-#            plot_results_time(outputs[j], ax)
              
             plt.pause(0.001)
 
             if images_so_far == num_images:
                 return
             
-def save_model(model, tort = 'Val'):
-    images_so_far = 0
-
-    if tort == 'Train':
-        dataloader = dataloader_train
-    else:
-        dataloader = dataloader_val
-
-    for i, data in enumerate(dataloader):
-        samples = data
-        if use_gpu:
-            inputs = Variable(samples['image'].cuda())
-            trajectories = Variable(samples['trajectories'].cuda())
-        else:
-            inputs, trajectories = Variable(samples['image']), Variable(samples['trajectories'])
-
-        outputs = model(inputs)
-
-        for j in range(inputs.size()[0]):
-            outData = GMR(outputs[j], trajectories[j])
-            images_so_far += 1
-            file_path = 'predictedTraj' + tort + '/' + str(images_so_far) + '.txt'
-            np.savetxt(file_path, outData.cpu().data.numpy())
-            
-#model_ft = models.resnet18(pretrained=False)
 model_ft = JaeseokNet()
-if (fixed == True):
-    for param in model_ft.parameters():
-        param.requires_grad = False
-#num_ftrs = model_ft.fc.in_features
-#num_output = (3 + 3 * 3) * 5
-#model_ft.fc = nn.Linear(num_ftrs, num_output)
         
 print (model_ft)
 
@@ -447,12 +402,8 @@ if (train == True):
     criterion = nn.MSELoss()
 
     # Observe that all parameters are being optimized
-    if (fixed == True):
-        #optimizer_ft = optim.SGD(model_ft.fc.parameters(), lr=0.001, momentum=0.9)
-        optimizer_ft = optim.Adam(model_ft.fc.parameters())
-    else:
-        #optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
-        optimizer_ft = optim.Adam(model_ft.parameters())
+    #optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
+    optimizer_ft = optim.Adam(model_ft.parameters())
 
     # Decay LR by a factor of 0.1 every 7 epochs
     #exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
@@ -461,13 +412,9 @@ if (train == True):
     model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
                            num_epochs=1000)
 else:
-     # Observe that all parameters are being optimized
-    if (fixed == True):
-        #optimizer_ft = optim.SGD(model_ft.fc.parameters(), lr=0.001, momentum=0.9)
-        optimizer_ft = optim.Adam(model_ft.fc.parameters())
-    else:
-        #optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
-        optimizer_ft = optim.Adam(model_ft.parameters())
+    # Observe that all parameters are being optimized
+    #optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
+    optimizer_ft = optim.Adam(model_ft.parameters())
         
     cpName = checkpoint_dir + 'checkpointAllEpochs.tar'
     if os.path.isfile(cpName):
@@ -504,8 +451,6 @@ if (restore == True):
 if train != True:
     visualize_model(model_ft, tort = 'Train')
     visualize_model(model_ft, tort = 'Val')
-    #save_model(model_ft, tort = 'Train')
-    #save_model(model_ft, tort = 'Val')
 
     fig = plt.figure()
     plt.plot(loss_list[2:], color='red')
@@ -523,24 +468,14 @@ if train != True:
     plt.plot(loss_mse_list[2:], color='red')
     plt.plot(loss_mse_list_val[2:], color='blue')
     
-    np.save('loss_list.npy', loss_list)
-    np.save('loss_list_val.npy', loss_list_val)
-    np.save('loss_1_list.npy', loss_1_list)
-    np.save('loss_1_list_val.npy', loss_1_list_val)
-    np.save('loss_2_list.npy', loss_2_list)
-    np.save('loss_2_list_val.npy', loss_2_list_val)
-    np.save('loss_mse_list.npy', loss_mse_list)
-    np.save('loss_mse_list_val.npy', loss_mse_list_val)
+    np.save(save_dir + 'loss_list.npy', loss_list)
+    np.save(save_dir + 'loss_list_val.npy', loss_list_val)
+    np.save(save_dir + 'loss_1_list.npy', loss_1_list)
+    np.save(save_dir + 'loss_1_list_val.npy', loss_1_list_val)
+    np.save(save_dir + 'loss_2_list.npy', loss_2_list)
+    np.save(save_dir + 'loss_2_list_val.npy', loss_2_list_val)
+    np.save(save_dir + 'loss_mse_list.npy', loss_mse_list)
+    np.save(save_dir + 'loss_mse_list_val.npy', loss_mse_list_val)
     
 
 raw_input('Press enter to continue: ')
-
-#
-#visualize_model(model_conv)
-#
-#plt.ioff()
-#plt.show()
-#
-#plt.pause(2)
-#
-#

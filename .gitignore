@@ -1,4 +1,7 @@
+# File created during training
 datasetICDL-JINT/
+checkpoints/
+errors/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
