@@ -40,7 +40,7 @@ cd <local_path_to_the_repository>
 python CleaningNetwork.py
 ```
 
-### Visdom (optional)
+## Visdom
 
 If you want to visualize the loss training and validation error through the epochs and an example of a bach of images used for training run a visdom server:
 
