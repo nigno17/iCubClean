@@ -59,7 +59,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 # Modalities
-train = False
+train = True
 restore = False
 
 # check if the checkpoints dir exist otherwise create it
