@@ -11,8 +11,9 @@ The network is able to predict, from images, mean vectors and covariance matrice
 In order to run the code you need to install few dependencies:
 
 * Python 2.7
-* [Pytorch](https://pytorch.org/)
+* [Pytorch 0.4.0](https://pytorch.org/)
 * [Visdom](https://github.com/facebookresearch/visdom)
+* [opencv](https://opencv.org/)
 
 ## Usage
 
