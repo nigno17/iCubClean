@@ -23,7 +23,7 @@ First clone the repository:
 git clone https://github.com/nigno17/iCubClean.git
 ```
 
-Second download and unzip the repository inside the folder datasetICDL-JINT (if you want more information about the dataset please go to the [link](http://vislab.isr.ist.utl.pt/datasets/) and refer to  ___Robot Table Cleaning v2___):
+Second download and unzip the repository inside the folder datasetICDL-JINT (if you want more information about the dataset please go to the [link](http://vislab.isr.ist.utl.pt/datasets/#clean2) and refer to  ___Robot Table Cleaning v2___):
 
 ```bash
 cd iCubClean
